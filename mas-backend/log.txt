@@ -1,13 +1,1 @@
-Game Started!
---- Turn 1 ---
-Market: Current Market Cap is 1000 customers.
-MAS Marketing Agent: No profitable marketing options found. Recommending $0 spend.
-MAS CEO Final Decision: Price $9.34, Production 75 units, Marketing $0.
-Human decision processed. Sales: 100, Profit: 800.00
-MAS decision processed. Sales: 100, Profit: 659.00
---- Turn 2 ---
-Market: Current Market Cap is 1000 customers.
-MAS Marketing Agent: No profitable marketing options found. Recommending $0 spend.
-MAS CEO Final Decision: Price $10.56, Production 275 units, Marketing $0.
-Human decision processed. Sales: 50, Profit: 325.00
-MAS decision processed. Sales: 75, Profit: -70.50
+Simulation Started!

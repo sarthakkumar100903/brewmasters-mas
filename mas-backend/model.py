@@ -24,7 +24,7 @@ class BrewMastersModel(Model):
         self.current_market_cap = self.initial_market_cap
         self.financial_crisis_active = False
 
-        self.cumulative_event_log = ["Game Started!"] # New: Store all logs cumulatively
+        self.cumulative_event_log = ["Simulation Started!"] # New: Store all logs cumulatively
 
         self.game_state = {
             "turn": 0,
