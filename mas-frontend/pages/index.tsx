@@ -4,7 +4,8 @@ import Dashboard from "../components/Dashboard";
 import EventLog from "../components/EventLog";
 import ProductionChart from "../components/ProductionChart";
 import PriceChart from "../components/PriceChart";
-import ProfitChart from "../components/ProfitChart"; // New: Import ProfitChart
+import ProfitChart from "../components/ProfitChart";
+import TotalProfitChart from "../components/TotalProfitChart";
 import CurrentTurnDetails from "../components/CurrentTurnDetails";
 import { GameState } from "../types/GameState";
 
@@ -40,24 +41,38 @@ export default function Home() {
 
   if (!gameState) return <div className="p-6">Loading game...</div>;
 
-  const chartHistory = gameState.turn_history.filter(entry => entry.turn > 0);
+  const chartHistory = gameState.turn_history.filter((entry) => entry.turn > 0);
 
   return (
     <div className="min-h-screen bg-white text-black p-6 space-y-6">
       <h1 className="text-3xl font-bold text-center">BrewMasters CEO Challenge</h1>
+
       <Dashboard data={gameState} />
-      <ControlsPanel onSubmit={sendTurn} />
+
+      {/* Controls and Event Log side-by-side */}
+      <div className="flex flex-col md:flex-row gap-6 w-full items-stretch">
+        <div className="flex-grow basis-1/2 h-full">
+          <div className="h-full flex flex-col bg-gray-50 rounded-lg p-4 shadow">
+            <ControlsPanel onSubmit={sendTurn} />
+          </div>
+        </div>
+        <div className="flex-grow basis-1/2 h-full">
+          <div className="h-full flex flex-col bg-gray-50 rounded-lg p-4 shadow">
+            <EventLog log={gameState.event_log} />
+          </div>
+        </div>
+      </div>
+
       <CurrentTurnDetails data={gameState} />
-      
+
       {chartHistory.length > 0 && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <PriceChart history={chartHistory} />
           <ProductionChart history={chartHistory} />
-          <ProfitChart history={chartHistory} /> {/* New: Render ProfitChart */}
+          <ProfitChart history={chartHistory} />
+          <TotalProfitChart history={chartHistory} />
         </div>
       )}
-
-      <EventLog log={gameState.event_log} />
     </div>
   );
 }

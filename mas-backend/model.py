@@ -24,6 +24,8 @@ class BrewMastersModel(Model):
         self.current_market_cap = self.initial_market_cap
         self.financial_crisis_active = False
 
+        self.cumulative_event_log = ["Game Started!"] # New: Store all logs cumulatively
+
         self.game_state = {
             "turn": 0,
             "current_market_cap": self.current_market_cap,
@@ -34,8 +36,8 @@ class BrewMastersModel(Model):
             "green_team_projected_demand": 0,
             "green_team_last_production_target": 50,
             "green_team_last_marketing_spend": 0,
-            "green_team_total_production": 0, # New: cumulative
-            "green_team_total_sales": 0,      # New: cumulative
+            "green_team_total_production": 0,
+            "green_team_total_sales": 0,
             "blue_team_profit": 100000,
             "blue_team_inventory": 100,
             "blue_team_price": 10,
@@ -43,9 +45,9 @@ class BrewMastersModel(Model):
             "blue_team_projected_demand": 0,
             "blue_team_last_production_target": 50,
             "blue_team_last_marketing_spend": 0,
-            "blue_team_total_production": 0,  # New: cumulative
-            "blue_team_total_sales": 0,       # New: cumulative
-            "event_log": ["Game Started!"]
+            "blue_team_total_production": 0,
+            "blue_team_total_sales": 0,
+            "event_log": self.cumulative_event_log # Link game_state to the cumulative log
         }
 
         self.ceo_agent = CEOAgent(1, self)
@@ -90,19 +92,21 @@ class BrewMastersModel(Model):
     def toggle_financial_crisis(self, active: bool):
         """Toggles the financial crisis mode."""
         self.financial_crisis_active = active
-        self.game_state['event_log'].append(f"Market: Financial crisis {'ACTIVATED' if active else 'DEACTIVATED'}!")
+        self.cumulative_event_log.append(f"Market: Financial crisis {'ACTIVATED' if active else 'DEACTIVATED'}!")
 
 
     def step(self, human_decisions):
         """Processes one full turn of the game with the new MAS logic and shared market."""
         self.turn += 1
         self.game_state['turn'] = self.turn
-        self.game_state['event_log'] = [f"--- Turn {self.turn} ---"]
+        
+        # Append turn start message to the cumulative log
+        self.cumulative_event_log.append(f"--- Turn {self.turn} ---")
 
         # Update current market cap based on crisis status
         self.current_market_cap = self.initial_market_cap * (MARKET_CRISIS_REDUCTION_FACTOR if self.financial_crisis_active else 1.0)
         self.game_state['current_market_cap'] = self.current_market_cap
-        self.game_state['event_log'].append(f"Market: Current Market Cap is {int(self.current_market_cap)} customers.")
+        self.cumulative_event_log.append(f"Market: Current Market Cap is {int(self.current_market_cap)} customers.")
 
         # Get human decisions
         human_price = float(human_decisions.get('price', 10))
@@ -134,7 +138,7 @@ class BrewMastersModel(Model):
         if total_attractiveness == 0:
             allocated_demand_green = self.current_market_cap / 2 if self.current_market_cap > 0 else 0
             allocated_demand_blue = self.current_market_cap / 2 if self.current_market_cap > 0 else 0
-            self.game_state['event_log'].append("Market: Both teams equally unattractive. Market split.")
+            self.cumulative_event_log.append("Market: Both teams equally unattractive. Market split.")
         else:
             allocated_demand_green = (green_attractiveness / total_attractiveness) * self.current_market_cap
             allocated_demand_blue = (blue_attractiveness / total_attractiveness) * self.current_market_cap
@@ -146,12 +150,12 @@ class BrewMastersModel(Model):
 
         # --- Process Green Team (Human) outcome ---
         human_outcome = self.calculate_outcome("green_team", human_price, human_marketing, human_production, allocated_demand_green)
-        self.game_state['event_log'].append(f"Human decision processed. Sales: {human_outcome['sales']}, Profit: {human_outcome['profit_this_turn']:.2f}")
+        self.cumulative_event_log.append(f"Human decision processed. Sales: {human_outcome['sales']}, Profit: {human_outcome['profit_this_turn']:.2f}")
         self.game_state['green_team_projected_demand'] = allocated_demand_green
         self.game_state['green_team_last_production_target'] = human_production
         self.game_state['green_team_last_marketing_spend'] = human_marketing
-        self.game_state['green_team_total_production'] += human_production # Update cumulative
-        self.game_state['green_team_total_sales'] += human_outcome['sales'] # Update cumulative
+        self.game_state['green_team_total_production'] += human_production
+        self.game_state['green_team_total_sales'] += human_outcome['sales']
 
         # --- Process Blue Team (MAS) outcome ---
         mas_outcome = self.calculate_outcome(
@@ -161,14 +165,14 @@ class BrewMastersModel(Model):
             mas_decisions['production_target'],
             allocated_demand_blue
         )
-        self.game_state['event_log'].append(
+        self.cumulative_event_log.append(
             f"MAS decision processed. Sales: {mas_outcome['sales']}, Profit: {mas_outcome['profit_this_turn']:.2f}"
         )
         self.game_state['blue_team_projected_demand'] = self.knowledge_base.demand_forecast
         self.game_state['blue_team_last_production_target'] = mas_decisions['production_target']
         self.game_state['blue_team_last_marketing_spend'] = mas_decisions['marketing_spend']
-        self.game_state['blue_team_total_production'] += mas_decisions['production_target'] # Update cumulative
-        self.game_state['blue_team_total_sales'] += mas_outcome['sales'] # Update cumulative
+        self.game_state['blue_team_total_production'] += mas_decisions['production_target']
+        self.game_state['blue_team_total_sales'] += mas_outcome['sales']
 
 
         # Record both teams' results for the next turn's analysis
@@ -180,11 +184,13 @@ class BrewMastersModel(Model):
             "green_team_production_target": human_production,
             "green_team_sales": human_outcome['sales'],
             "green_team_profit_this_turn": human_outcome['profit_this_turn'],
+            "green_team_total_profit": self.game_state['green_team_profit'], # Add total profit to history
             # MAS (Blue Team) decisions and outcomes
             "blue_team_price": mas_decisions['price'],
             "blue_team_marketing_spend": mas_decisions['marketing_spend'],
             "blue_team_production_target": mas_decisions['production_target'],
             "blue_team_sales": mas_outcome['sales'],
-            "blue_team_profit_this_turn": mas_outcome['profit_this_turn']
+            "blue_team_profit_this_turn": mas_outcome['profit_this_turn'],
+            "blue_team_total_profit": self.game_state['blue_team_profit'] # Add total profit to history
         }
         self.turn_history.append(history_entry)
