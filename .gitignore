@@ -1,0 +1,28 @@
+# Python virtual environments
+env/
+venv/
+.venv/
+
+# Python artifacts
+__pycache__/
+*.py[cod]
+*.egg
+*.egg-info/
+dist/
+build/
+
+# Node
+mas-frontend/node_modules/
+mas-frontend/.next/
+mas-frontend/.env
+mas-frontend/.turbo/
+
+# Logs
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# VS Code
+.vscode/
