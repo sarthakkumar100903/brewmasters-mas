@@ -2,10 +2,14 @@ import { useEffect, useRef, useState } from "react";
 import ControlsPanel from "../components/ControlsPanel";
 import Dashboard from "../components/Dashboard";
 import EventLog from "../components/EventLog";
+import ProductionChart from "../components/LineChart"; // Import the chart component
 import { GameState } from "../types/GameState";
 
 export default function Home() {
   const [gameState, setGameState] = useState<GameState | null>(null);
+  const [productionHistory, setProductionHistory] = useState<
+    { turn: number; blue_team_production_target: number; green_team_production_target: number }[]
+  >([]);
   const socketRef = useRef<WebSocket | null>(null);
 
   useEffect(() => {
@@ -14,8 +18,16 @@ export default function Home() {
 
     socket.onopen = () => console.log("WebSocket connected");
     socket.onmessage = (event) => {
-      const data = JSON.parse(event.data);
+      const data: GameState = JSON.parse(event.data);
       setGameState(data);
+      setProductionHistory((prevHistory) => [
+        ...prevHistory,
+        {
+          turn: data.turn,
+          blue_team_production_target: data.blue_team_last_production_target,
+          green_team_production_target: data.green_team_last_production_target,
+        },
+      ]);
     };
 
     socket.onerror = (err) => console.error("WebSocket error", err);
@@ -41,6 +53,7 @@ export default function Home() {
       <h1 className="text-3xl font-bold text-center">BrewMasters CEO Challenge</h1>
       <Dashboard data={gameState} />
       <ControlsPanel onSubmit={sendTurn} />
+      <ProductionChart history={productionHistory} /> {/* Pass history to the chart */}
       <EventLog log={gameState.event_log} />
     </div>
   );
