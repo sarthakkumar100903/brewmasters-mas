@@ -1,15 +1,11 @@
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { GameState } from '../types/GameState';
 
-interface ChartProps {
-  // History now needs to contain production targets for both teams per turn
-  history: {
-    turn: number;
-    blue_team_production_target: number;
-    green_team_production_target: number;
-  }[];
+interface ProductionChartProps {
+  history: GameState['turn_history'];
 }
 
-export default function ProductionChart({ history }: ChartProps) {
+export default function ProductionChart({ history }: ProductionChartProps) {
   return (
     <div className="bg-white p-4 rounded shadow mt-4">
       <h2 className="font-semibold mb-2">Production Targets Over Time</h2>

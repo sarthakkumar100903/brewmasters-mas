@@ -2,14 +2,14 @@ import { useEffect, useRef, useState } from "react";
 import ControlsPanel from "../components/ControlsPanel";
 import Dashboard from "../components/Dashboard";
 import EventLog from "../components/EventLog";
-import ProductionChart from "../components/LineChart"; // Import the chart component
+import ProductionChart from "../components/ProductionChart";
+import PriceChart from "../components/PriceChart";
+import ProfitChart from "../components/ProfitChart"; // New: Import ProfitChart
+import CurrentTurnDetails from "../components/CurrentTurnDetails";
 import { GameState } from "../types/GameState";
 
 export default function Home() {
   const [gameState, setGameState] = useState<GameState | null>(null);
-  const [productionHistory, setProductionHistory] = useState<
-    { turn: number; blue_team_production_target: number; green_team_production_target: number }[]
-  >([]);
   const socketRef = useRef<WebSocket | null>(null);
 
   useEffect(() => {
@@ -20,14 +20,6 @@ export default function Home() {
     socket.onmessage = (event) => {
       const data: GameState = JSON.parse(event.data);
       setGameState(data);
-      setProductionHistory((prevHistory) => [
-        ...prevHistory,
-        {
-          turn: data.turn,
-          blue_team_production_target: data.blue_team_last_production_target,
-          green_team_production_target: data.green_team_last_production_target,
-        },
-      ]);
     };
 
     socket.onerror = (err) => console.error("WebSocket error", err);
@@ -48,12 +40,23 @@ export default function Home() {
 
   if (!gameState) return <div className="p-6">Loading game...</div>;
 
+  const chartHistory = gameState.turn_history.filter(entry => entry.turn > 0);
+
   return (
     <div className="min-h-screen bg-white text-black p-6 space-y-6">
       <h1 className="text-3xl font-bold text-center">BrewMasters CEO Challenge</h1>
       <Dashboard data={gameState} />
       <ControlsPanel onSubmit={sendTurn} />
-      <ProductionChart history={productionHistory} /> {/* Pass history to the chart */}
+      <CurrentTurnDetails data={gameState} />
+      
+      {chartHistory.length > 0 && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <PriceChart history={chartHistory} />
+          <ProductionChart history={chartHistory} />
+          <ProfitChart history={chartHistory} /> {/* New: Render ProfitChart */}
+        </div>
+      )}
+
       <EventLog log={gameState.event_log} />
     </div>
   );

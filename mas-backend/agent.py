@@ -2,7 +2,7 @@ import numpy as np
 from mesa import Agent
 
 DESIRED_INVENTORY_WEEKS = 2.5
-PROFIT_MARGIN_TARGET = 0.4
+PROFIT_MARGIN_TARGET = 0.6
 UNIT_PRODUCTION_COST = 3.0
 UNIT_HOLDING_COST = 0.5
 
@@ -14,7 +14,7 @@ class SharedKnowledgeBase:
     def __init__(self, model):
         self.turn_history = model.turn_history
         self.current_inventory = model.game_state['blue_team_inventory']
-        self.current_market_cap = model.game_state['current_market_cap'] # New: Include current market cap
+        self.current_market_cap = model.game_state['current_market_cap'] # Include current market cap in knowledge
 
         # Core Analytics
         self.sales_history = [h['blue_team_sales'] for h in self.turn_history if 'blue_team_sales' in h]
@@ -24,7 +24,7 @@ class SharedKnowledgeBase:
         elif self.sales_history:
             self.demand_forecast = np.mean(self.sales_history)
         else:
-            self.demand_forecast = 50 # Initial guess (could be relative to market cap)
+            self.demand_forecast = 50 # Initial guess (can be improved to use market cap)
 
         self.unit_cost = UNIT_PRODUCTION_COST + UNIT_HOLDING_COST
 
@@ -80,9 +80,9 @@ class PricingAgent(Agent):
         kb = self.model.knowledge_base
         base_price = kb.unit_cost / (1 - PROFIT_MARGIN_TARGET)
         inventory_ratio = kb.current_inventory / (kb.demand_forecast * DESIRED_INVENTORY_WEEKS + 1e-6)
-        price_adjustment_factor = -np.tanh(inventory_ratio - 1) * 1.5
+        price_adjustment_factor = -np.tanh(inventory_ratio - 1) * 3.0 # Multiplier increased for more swing
         new_price = round(base_price + price_adjustment_factor, 2)
-        new_price = max(8.0, min(15.0, new_price))
+        new_price = max(8.0, min(15.0, new_price)) # Price clamped between 8 and 15
         self.proposal = {'price': new_price}
 
 class MarketingAgent(Agent):
@@ -96,26 +96,44 @@ class MarketingAgent(Agent):
 
     def step(self):
         kb = self.model.knowledge_base
-        # Adjusted condition to consider market cap or total potential customers
-        # For simplicity, still using internal demand forecast, but ideally should compare to market cap
-        if kb.current_inventory < (kb.demand_forecast * 0.8):
+        
+        # Condition 1: If inventory is critically low relative to our own demand forecast, halt marketing.
+        # This prevents marketing products we don't have enough stock for.
+        if kb.current_inventory < (kb.demand_forecast * 0.5): # Marketing only if inventory is at least 50% of demand forecast
             self.proposal = {'spend': 0}
+            self.model.game_state['event_log'].append("MAS Marketing Agent: Inventory very low relative to demand. Halted marketing.")
             return
 
+        # Condition 2: Evaluate marketing options based on ROI if we have sufficient inventory.
         best_spend = 0
-        max_roi = 0.0
-        # Accessing proposed_price from another agent is acceptable within MAS
+        max_roi = -float('inf') # Initialize with negative infinity to ensure any positive ROI is chosen
+
         proposed_price = self.model.specialist_agents[0].proposal['price']
         profit_per_unit = proposed_price - kb.unit_cost
 
-        for option in [0, 500, 2000]:
-            estimated_demand_boost = (option / 500) * 15 # Original scaling factor for marketing boost
-            estimated_additional_profit = estimated_demand_boost * profit_per_unit
-            roi = estimated_additional_profit - option
-            if roi > max_roi:
-                max_roi = roi
-                best_spend = option
+        # Only consider marketing options if there's a positive profit margin per unit.
+        # Marketing doesn't make sense if each sale loses money.
+        if profit_per_unit > 0:
+            for option in [0, 500, 2000]:
+                estimated_demand_boost = (option / 500) * 15 # Estimated increase in sales due to marketing
+                estimated_additional_profit = estimated_demand_boost * profit_per_unit
+                roi = estimated_additional_profit - option # ROI = additional profit from sales - cost of marketing
+
+                # Choose the option with the highest ROI
+                if roi > max_roi:
+                    max_roi = roi
+                    best_spend = option
+        else: 
+            # If profit per unit is 0 or negative, marketing won't generate positive ROI from sales
+            best_spend = 0
+            self.model.game_state['event_log'].append("MAS Marketing Agent: Negative profit margin per unit. Marketing would incur further losses.")
+
         self.proposal = {'spend': best_spend}
+        if best_spend > 0:
+             self.model.game_state['event_log'].append(f"MAS Marketing Agent: Optimized for ROI, recommending ${best_spend} spend.")
+        elif profit_per_unit > 0: 
+            # Log if profit_per_unit allows for positive ROI, but $0 marketing was optimal for that turn
+             self.model.game_state['event_log'].append("MAS Marketing Agent: No profitable marketing options found. Recommending $0 spend.")
 
 class ProductionAgent(Agent):
     """

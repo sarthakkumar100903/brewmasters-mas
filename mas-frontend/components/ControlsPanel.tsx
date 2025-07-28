@@ -21,12 +21,15 @@ export default function ControlsPanel({ onSubmit }: ControlsProps) {
     <div className="space-y-4 p-4 bg-green-100 rounded-xl shadow">
       <h2 className="text-lg font-semibold">Green Team Controls</h2>
       <label className="block">
-        Price:
+        Price: ${price.toFixed(2)} {/* Display current value */}
         <input
-          type="number"
+          type="range" // Changed to range slider
+          min="8"      // Minimum price
+          max="15"     // Maximum price
+          step="0.1"   // Step for price adjustment
           value={price}
           onChange={(e) => setPrice(Number(e.target.value))}
-          className="w-full border rounded p-1"
+          className="w-full h-2 bg-gray-300 rounded-lg appearance-none cursor-pointer"
         />
       </label>
       <label className="block">

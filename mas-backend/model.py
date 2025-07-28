@@ -26,19 +26,25 @@ class BrewMastersModel(Model):
 
         self.game_state = {
             "turn": 0,
-            "current_market_cap": self.current_market_cap, # New: shared market cap
+            "current_market_cap": self.current_market_cap,
             "green_team_profit": 100000,
             "green_team_inventory": 100,
             "green_team_price": 10,
-            "green_team_profit_this_turn": 0, # New: profit this turn
-            "green_team_projected_demand": 0, # New: projected demand
-            "green_team_last_production_target": 50, # New: for charting
+            "green_team_profit_this_turn": 0,
+            "green_team_projected_demand": 0,
+            "green_team_last_production_target": 50,
+            "green_team_last_marketing_spend": 0,
+            "green_team_total_production": 0, # New: cumulative
+            "green_team_total_sales": 0,      # New: cumulative
             "blue_team_profit": 100000,
             "blue_team_inventory": 100,
             "blue_team_price": 10,
-            "blue_team_profit_this_turn": 0, # New: profit this turn
-            "blue_team_projected_demand": 0, # New: projected demand
-            "blue_team_last_production_target": 50, # New: for charting
+            "blue_team_profit_this_turn": 0,
+            "blue_team_projected_demand": 0,
+            "blue_team_last_production_target": 50,
+            "blue_team_last_marketing_spend": 0,
+            "blue_team_total_production": 0,  # New: cumulative
+            "blue_team_total_sales": 0,       # New: cumulative
             "event_log": ["Game Started!"]
         }
 
@@ -67,7 +73,7 @@ class BrewMastersModel(Model):
 
         # Update state
         self.game_state[profit_key] += profit_this_turn
-        self.game_state[profit_this_turn_key] = profit_this_turn # Update profit for this turn
+        self.game_state[profit_this_turn_key] = profit_this_turn
         self.game_state[inventory_key] -= sales
         self.game_state[inventory_key] += production_target
         self.game_state[price_key] = price
@@ -77,7 +83,9 @@ class BrewMastersModel(Model):
 
     def get_state_as_json(self):
         """Serializes the current game state to JSON."""
-        return json.dumps(self.game_state, indent=2)
+        state_to_serialize = self.game_state.copy()
+        state_to_serialize['turn_history'] = self.turn_history 
+        return json.dumps(state_to_serialize, indent=2)
 
     def toggle_financial_crisis(self, active: bool):
         """Toggles the financial crisis mode."""
@@ -124,7 +132,6 @@ class BrewMastersModel(Model):
 
         # Handle cases where total attractiveness is zero to avoid division by zero
         if total_attractiveness == 0:
-            # If no one is attractive, maybe split the market equally or no sales
             allocated_demand_green = self.current_market_cap / 2 if self.current_market_cap > 0 else 0
             allocated_demand_blue = self.current_market_cap / 2 if self.current_market_cap > 0 else 0
             self.game_state['event_log'].append("Market: Both teams equally unattractive. Market split.")
@@ -140,8 +147,11 @@ class BrewMastersModel(Model):
         # --- Process Green Team (Human) outcome ---
         human_outcome = self.calculate_outcome("green_team", human_price, human_marketing, human_production, allocated_demand_green)
         self.game_state['event_log'].append(f"Human decision processed. Sales: {human_outcome['sales']}, Profit: {human_outcome['profit_this_turn']:.2f}")
-        self.game_state['green_team_projected_demand'] = allocated_demand_green # For display
-        self.game_state['green_team_last_production_target'] = human_production # For charting
+        self.game_state['green_team_projected_demand'] = allocated_demand_green
+        self.game_state['green_team_last_production_target'] = human_production
+        self.game_state['green_team_last_marketing_spend'] = human_marketing
+        self.game_state['green_team_total_production'] += human_production # Update cumulative
+        self.game_state['green_team_total_sales'] += human_outcome['sales'] # Update cumulative
 
         # --- Process Blue Team (MAS) outcome ---
         mas_outcome = self.calculate_outcome(
@@ -154,18 +164,23 @@ class BrewMastersModel(Model):
         self.game_state['event_log'].append(
             f"MAS decision processed. Sales: {mas_outcome['sales']}, Profit: {mas_outcome['profit_this_turn']:.2f}"
         )
-        self.game_state['blue_team_projected_demand'] = self.knowledge_base.demand_forecast # Use MAS's forecast for its own projected demand
-        self.game_state['blue_team_last_production_target'] = mas_decisions['production_target'] # For charting
+        self.game_state['blue_team_projected_demand'] = self.knowledge_base.demand_forecast
+        self.game_state['blue_team_last_production_target'] = mas_decisions['production_target']
+        self.game_state['blue_team_last_marketing_spend'] = mas_decisions['marketing_spend']
+        self.game_state['blue_team_total_production'] += mas_decisions['production_target'] # Update cumulative
+        self.game_state['blue_team_total_sales'] += mas_outcome['sales'] # Update cumulative
 
 
         # Record both teams' results for the next turn's analysis
         history_entry = {
             "turn": self.turn,
+            # Human (Green Team) decisions and outcomes
             "green_team_price": human_price,
             "green_team_marketing_spend": human_marketing,
             "green_team_production_target": human_production,
             "green_team_sales": human_outcome['sales'],
             "green_team_profit_this_turn": human_outcome['profit_this_turn'],
+            # MAS (Blue Team) decisions and outcomes
             "blue_team_price": mas_decisions['price'],
             "blue_team_marketing_spend": mas_decisions['marketing_spend'],
             "blue_team_production_target": mas_decisions['production_target'],

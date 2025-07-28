@@ -20,6 +20,8 @@ export default function Dashboard({ data }: DashboardProps) {
         <p>Inventory: {data.green_team_inventory}</p>
         <p>Price: ${data.green_team_price}</p>
         <p>Projected Demand (Last Turn Sales): {data.green_team_projected_demand.toFixed(0)}</p>
+        <p>Total Production: {data.green_team_total_production}</p> {/* New */}
+        <p>Total Sales: {data.green_team_total_sales}</p>             {/* New */}
       </div>
 
       {/* Blue Team */}
@@ -30,6 +32,8 @@ export default function Dashboard({ data }: DashboardProps) {
         <p>Inventory: {data.blue_team_inventory}</p>
         <p>Price: ${data.blue_team_price}</p>
         <p>Projected Demand (MAS Forecast): {data.blue_team_projected_demand.toFixed(0)}</p>
+        <p>Total Production: {data.blue_team_total_production}</p>  {/* New */}
+        <p>Total Sales: {data.blue_team_total_sales}</p>              {/* New */}
       </div>
     </div>
   );
