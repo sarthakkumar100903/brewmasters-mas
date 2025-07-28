@@ -2,7 +2,7 @@ import numpy as np
 from mesa import Agent
 
 DESIRED_INVENTORY_WEEKS = 2.5
-PROFIT_MARGIN_TARGET = 0.6
+PROFIT_MARGIN_TARGET = 0.6 # Adjusted to allow higher base price and dynamic movement
 UNIT_PRODUCTION_COST = 3.0
 UNIT_HOLDING_COST = 0.5
 

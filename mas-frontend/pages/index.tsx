@@ -41,30 +41,26 @@ export default function Home() {
 
   if (!gameState) return <div className="p-6">Loading game...</div>;
 
-  const chartHistory = gameState.turn_history.filter((entry) => entry.turn > 0);
+  const chartHistory = gameState.turn_history.filter(entry => entry.turn > 0);
 
   return (
     <div className="min-h-screen bg-white text-black p-6 space-y-6">
       <h1 className="text-3xl font-bold text-center">BrewMasters CEO Challenge</h1>
-
+      
       <Dashboard data={gameState} />
 
-      {/* Controls and Event Log side-by-side */}
-      <div className="flex flex-col md:flex-row gap-6 w-full items-stretch">
-        <div className="flex-grow basis-1/2 h-full">
-          <div className="h-full flex flex-col bg-gray-50 rounded-lg p-4 shadow">
-            <ControlsPanel onSubmit={sendTurn} />
-          </div>
+      {/* Green Team Controls and Event Log side-by-side */}
+      <div className="flex flex-col md:flex-row gap-6"> {/* Reverted: removed w-full, flex-grow from children */}
+        <div className="md:w-1/2"> {/* Reverted to md:w-1/2 */}
+          <ControlsPanel onSubmit={sendTurn} />
         </div>
-        <div className="flex-grow basis-1/2 h-full">
-          <div className="h-full flex flex-col bg-gray-50 rounded-lg p-4 shadow">
-            <EventLog log={gameState.event_log} />
-          </div>
+        <div className="md:w-1/2"> {/* Reverted to md:w-1/2 */}
+          <EventLog log={gameState.event_log} />
         </div>
       </div>
-
+      
       <CurrentTurnDetails data={gameState} />
-
+      
       {chartHistory.length > 0 && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <PriceChart history={chartHistory} />
